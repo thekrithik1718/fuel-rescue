@@ -53,6 +53,7 @@ const TRANSITION_MAP = {
   ],
   [ORDER_STATUS.SEARCHING_FOR_PARTNER]: [
     ORDER_STATUS.PARTNER_ASSIGNED,
+    ORDER_STATUS.ACCEPTED,
     ORDER_STATUS.NO_PARTNER_AVAILABLE,
     ORDER_STATUS.CANCELLED,
   ],
@@ -133,7 +134,10 @@ export function isRoleAuthorizedForTransition(role, fromStatus, toStatus) {
 
   if (normalizedRole === ROLES.PARTNER) {
     // Delivery partner transitions through fulfilment stages
-    if (fromStatus === ORDER_STATUS.PARTNER_ASSIGNED && toStatus === ORDER_STATUS.ACCEPTED) return true;
+    if (
+      (fromStatus === ORDER_STATUS.PARTNER_ASSIGNED || fromStatus === ORDER_STATUS.SEARCHING_FOR_PARTNER) &&
+      toStatus === ORDER_STATUS.ACCEPTED
+    ) return true;
     if (fromStatus === ORDER_STATUS.PARTNER_ASSIGNED && toStatus === ORDER_STATUS.SEARCHING_FOR_PARTNER) return true; // Partner rejected
     if (fromStatus === ORDER_STATUS.ACCEPTED && toStatus === ORDER_STATUS.PREPARING) return true;
     if (fromStatus === ORDER_STATUS.PREPARING && toStatus === ORDER_STATUS.EN_ROUTE) return true;

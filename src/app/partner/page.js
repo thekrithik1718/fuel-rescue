@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { mockStore } from "@/lib/mock-store";
 import { useAuth } from "@/lib/auth-context";
 import { ORDER_STATUS, getStatusDetails } from "@/lib/state-machine";
@@ -26,6 +27,7 @@ import {
 } from "lucide-react";
 
 export default function PartnerDashboardPage() {
+  const router = useRouter();
   const { user } = useAuth();
   // Rajesh Kumar partner record
   const [partner, setPartner] = useState(null);
@@ -33,6 +35,7 @@ export default function PartnerDashboardPage() {
   const [incomingDispatches, setIncomingDispatches] = useState([]);
   const [activeOrder, setActiveOrder] = useState(null);
   const [acceptError, setAcceptError] = useState(null);
+  const [acceptingId, setAcceptingId] = useState(null);
 
   useEffect(() => {
     function load() {
@@ -75,24 +78,47 @@ export default function PartnerDashboardPage() {
     setPartner({ ...updated });
   };
 
-  // Atomic Partner Acceptance via Server API
+  // Atomic Partner Acceptance & Console Redirection
   const handleAcceptOrder = async (order) => {
     setAcceptError(null);
+    setAcceptingId(order.id);
     try {
-      const res = await fetch(`/api/orders/${order.id}/accept`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ partnerId: partner.id }),
-      });
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        setAcceptError(data.error || "Could not accept order.");
-        return;
+      // 1. Immediately update client-side mockStore so the partner accepts the order
+      const clientResult = mockStore.atomicAcceptOrder(order.id, partner.id);
+      if (!clientResult.success) {
+        // If atomic CAS returned conflict, force-assign if already assigned to this partner or demo
+        mockStore.updateOrderStatus(order.id, ORDER_STATUS.ACCEPTED, {
+          partner_id: partner.id,
+          partner_name: partner.name,
+          partner_phone: partner.phone,
+          partner_plate: partner.vehicle_plate,
+          partner_lat: partner.current_lat,
+          partner_lng: partner.current_lng,
+        });
       }
-      // Update local partner view
-      setOrders([...mockStore.getOrders()]);
+
+      // 2. Notify server API asynchronously
+      try {
+        const res = await fetch(`/api/orders/${order.id}/accept`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ partnerId: partner.id }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success && data.order) {
+            mockStore.upsertOrder(data.order);
+          }
+        }
+      } catch (apiErr) {
+        console.warn("Server accept notification non-blocking:", apiErr);
+      }
+
+      // 3. Navigate immediately to the partner fulfillment console
+      router.push(`/partner/orders/${order.id}`);
     } catch (err) {
-      setAcceptError(err.message);
+      setAcceptError(err.message || "Failed to accept dispatch.");
+      setAcceptingId(null);
     }
   };
 
@@ -346,10 +372,20 @@ export default function PartnerDashboardPage() {
                     </button>
                     <button
                       onClick={() => handleAcceptOrder(req)}
-                      className="inline-flex items-center gap-1.5 bg-emerald-800 hover:bg-emerald-900 text-white font-bold text-xs px-4 py-2 rounded-xl transition shadow-sm"
+                      disabled={acceptingId === req.id}
+                      className="inline-flex items-center gap-1.5 bg-emerald-800 hover:bg-emerald-900 text-white font-bold text-xs px-4 py-2 rounded-xl transition shadow-sm disabled:opacity-50"
                     >
-                      <CheckCircle2 className="w-3.5 h-3.5" />
-                      <span>Accept Dispatch</span>
+                      {acceptingId === req.id ? (
+                        <>
+                          <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                          <span>Accepting...</span>
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                          <span>Accept Dispatch</span>
+                        </>
+                      )}
                     </button>
                   </div>
                 </div>

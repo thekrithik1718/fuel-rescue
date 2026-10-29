@@ -410,6 +410,9 @@ class MockStore {
     if (
       [ORDER_STATUS.ACCEPTED, ORDER_STATUS.PREPARING, ORDER_STATUS.EN_ROUTE, ORDER_STATUS.ARRIVED, ORDER_STATUS.COMPLETED].includes(order.status)
     ) {
+      if (order.partner_id === partner.id) {
+        return { success: true, order };
+      }
       return {
         success: false,
         error: "Conflict: This rescue request was already accepted by another nearby rescuer.",
