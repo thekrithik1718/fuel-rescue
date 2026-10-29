@@ -238,7 +238,7 @@ function OrderTrackingContent() {
                 ) : order.status === ORDER_STATUS.COMPLETED ? (
                   <span className="text-zinc-600 font-semibold">Delivery Complete</span>
                 ) : (
-                  <span>Dispatched from Indiranagar Depot</span>
+                  <span>Dispatched from {order.supplier_name || "Nearest OMC Partner Bunk"}</span>
                 )}
               </div>
             </div>
@@ -452,7 +452,7 @@ function OrderTrackingContent() {
             </div>
 
             <div className="text-[11px] text-zinc-400 text-center">
-              Paid via {order.payment_method} • Sourced from BPCL Indiranagar
+              Paid via {order.payment_method} • Sourced from {order.supplier_name || "Authorized OMC Bunk"}
             </div>
           </div>
         </div>

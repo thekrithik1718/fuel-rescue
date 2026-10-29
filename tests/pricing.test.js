@@ -71,14 +71,34 @@ describe("Order Price Calculation - Subtotal and Safety Compliance", () => {
     expect(quote.isWithinFreeDistance).toBe(true);
   });
 
-  it("should reject quantities outside the 2L - 20L emergency canister compliance limit", () => {
+  it("should calculate accurate price for 1 Litre orders", () => {
+    // 1 Litre Petrol @ ₹102.50 = ₹102.50
+    // Distance 2.0 km <= 4km -> Delivery fee = ₹30
+    // Emergency handling fee = ₹15
+    // Total = 102.50 + 30 + 15 = ₹147.50
+    const quote = calculateOrderPrice({
+      fuelType: "PETROL",
+      quantityLitres: 1,
+      distanceKm: 2.0,
+      customFuelRate: 102.50,
+    });
+
+    expect(quote.quantityLitres).toBe(1);
+    expect(quote.fuelSubtotal).toBe(102.50);
+    expect(quote.deliveryFee).toBe(30);
+    expect(quote.emergencyFee).toBe(15);
+    expect(quote.totalAmount).toBe(147.50);
+    expect(quote.totalPaise).toBe(14750);
+  });
+
+  it("should reject quantities outside the 1L - 20L emergency canister compliance limit", () => {
     expect(() =>
       calculateOrderPrice({
         fuelType: "PETROL",
-        quantityLitres: 1, // too small
+        quantityLitres: 0.5, // too small (< 1L)
         distanceKm: 2,
       })
-    ).toThrow(/between 2L and 20L/);
+    ).toThrow(/between 1L and 20L/);
 
     expect(() =>
       calculateOrderPrice({
@@ -86,7 +106,7 @@ describe("Order Price Calculation - Subtotal and Safety Compliance", () => {
         quantityLitres: 25, // too large for mobile canister safety
         distanceKm: 2,
       })
-    ).toThrow(/between 2L and 20L/);
+    ).toThrow(/between 1L and 20L/);
   });
 
   it("should reject invalid fuel types", () => {

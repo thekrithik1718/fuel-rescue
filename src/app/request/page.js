@@ -9,6 +9,7 @@ import { getRouteDetails, calculateHaversineDistanceKm } from "@/lib/routing";
 import { mockStore, INITIAL_SUPPLIERS, INITIAL_SERVICE_ZONES } from "@/lib/mock-store";
 import { ORDER_STATUS } from "@/lib/state-machine";
 import { formatCurrency } from "@/lib/utils";
+import { findNearestPetrolBunk, VERIFIED_PETROL_BUNKS } from "@/lib/petrol-bunks";
 import {
   MapPin,
   Fuel,
@@ -43,9 +44,8 @@ function RequestFuelContent() {
   const searchParams = useSearchParams();
   const { user } = useAuth();
 
-  // Active Zone & Nearest Depot benchmark
+  // Active Zone
   const activeZone = INITIAL_SERVICE_ZONES[0];
-  const depotLocation = { lat: 12.9752, lng: 77.5990 }; // Indiranagar BPCL Depot coords
 
   // Form States
   const [currentStep, setCurrentStep] = useState(1);
@@ -53,17 +53,36 @@ function RequestFuelContent() {
   const [address, setAddress] = useState("12th Main Road, HAL 2nd Stage, Indiranagar, Bengaluru");
   const [landmark, setLandmark] = useState("Opposite Toit Brewpub, near road signal");
   const [fuelType, setFuelType] = useState("PETROL");
-  const [quantity, setQuantity] = useState(5);
+  const [quantity, setQuantity] = useState(1); // Selectable from 1 Litre itself
   const [vehicleModel, setVehicleModel] = useState("Hyundai i20 White");
   const [vehiclePlate, setVehiclePlate] = useState("KA-05-MN-2810");
   const [paymentMethod, setPaymentMethod] = useState("SIMULATED_UPI");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [gpsError, setGpsError] = useState(null);
 
+  // Dynamic Nearest Petrol Bunk Detection
+  const [nearestBunkData, setNearestBunkData] = useState(() =>
+    findNearestPetrolBunk(12.9716, 77.6412, "PETROL")
+  );
+
+  // Recalculate nearest bunk whenever customer coordinates or fuel type changes
+  useEffect(() => {
+    try {
+      const result = findNearestPetrolBunk(coords.lat, coords.lng, fuelType);
+      setNearestBunkData(result);
+    } catch (e) {
+      console.error("Failed to find nearest bunk:", e);
+    }
+  }, [coords.lat, coords.lng, fuelType]);
+
+  const connectedBunk = nearestBunkData?.nearestBunk;
+  const currentBunkRate =
+    fuelType === "DIESEL" ? connectedBunk?.diesel_price : connectedBunk?.petrol_price;
+
   // Route & Pricing Details
   const [routeInfo, setRouteInfo] = useState({
-    distanceKm: 3.8,
-    durationMinutes: 14,
+    distanceKm: 1.2,
+    durationMinutes: 9,
     geometry: null,
   });
 
@@ -72,30 +91,32 @@ function RequestFuelContent() {
     const qFuel = searchParams.get("fuel");
     const qQty = searchParams.get("qty");
     if (qFuel === "PETROL" || qFuel === "DIESEL") setFuelType(qFuel);
-    if (qQty && Number(qQty) >= 2 && Number(qQty) <= 20) setQuantity(Number(qQty));
+    if (qQty && Number(qQty) >= 1 && Number(qQty) <= 20) setQuantity(Number(qQty));
   }, [searchParams]);
 
-  // Recalculate route whenever customer moves map marker
+  // Recalculate route whenever customer coordinates or connected nearest bunk changes
   useEffect(() => {
     let isCancelled = false;
     async function updateRoute() {
+      if (!connectedBunk) return;
       try {
-        const details = await getRouteDetails(depotLocation, coords);
+        const bunkCoords = { lat: connectedBunk.lat, lng: connectedBunk.lng };
+        const details = await getRouteDetails(bunkCoords, coords);
         if (!isCancelled) {
           setRouteInfo(details);
         }
       } catch (e) {
         // fallback haversine
         const dist = calculateHaversineDistanceKm(
-          depotLocation.lat,
-          depotLocation.lng,
+          connectedBunk.lat,
+          connectedBunk.lng,
           coords.lat,
           coords.lng
         );
         if (!isCancelled) {
           setRouteInfo({
-            distanceKm: Math.max(0.5, Math.round(dist * 1.25 * 10) / 10),
-            durationMinutes: 15,
+            distanceKm: Math.max(0.5, Math.round(dist * 1.28 * 10) / 10),
+            durationMinutes: Math.max(8, Math.round(dist * 3.5)),
             geometry: null,
           });
         }
@@ -105,13 +126,14 @@ function RequestFuelContent() {
     return () => {
       isCancelled = true;
     };
-  }, [coords]);
+  }, [coords, connectedBunk?.id]);
 
-  // Compute price quote strictly according to ₹30 rule
+  // Compute price quote strictly according to ₹30 rule using nearest bunk's live fuel rate
   const quote = calculateOrderPrice({
     fuelType,
     quantityLitres: quantity,
     distanceKm: routeInfo.distanceKm,
+    customFuelRate: currentBunkRate,
   });
 
   // Handle GPS location request and reverse geocode
@@ -186,6 +208,12 @@ function RequestFuelContent() {
           vehicleModel,
           vehiclePlate,
           paymentMethod,
+          supplierId: connectedBunk?.id,
+          supplierName: connectedBunk?.trade_name,
+          supplierAddress: connectedBunk?.address,
+          supplierLat: connectedBunk?.lat,
+          supplierLng: connectedBunk?.lng,
+          customFuelRate: currentBunkRate,
         }),
       });
 
@@ -315,6 +343,57 @@ function RequestFuelContent() {
                 </span>
               </div>
 
+              {/* Nearest Connected Petrol Bunk Card */}
+              {connectedBunk && (
+                <div className="bg-gradient-to-br from-emerald-50/80 via-white to-zinc-50 border border-emerald-300/80 rounded-2xl p-4 space-y-2.5 shadow-sm">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-600 animate-pulse" />
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-900">
+                        Nearest Connected Fuel Bunk
+                      </span>
+                    </div>
+                    <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-md bg-emerald-900 text-amber-300">
+                      {connectedBunk.brand} Authorized
+                    </span>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-1 border-t border-emerald-100">
+                    <div>
+                      <div className="font-extrabold text-zinc-950 text-sm">
+                        {connectedBunk.name}
+                      </div>
+                      <div className="text-[11px] text-zinc-600">
+                        {connectedBunk.address}
+                      </div>
+                    </div>
+                    <div className="text-left sm:text-right flex-shrink-0">
+                      <div className="text-xs font-bold text-emerald-800">
+                        ~{routeInfo.distanceKm} km from your GPS
+                      </div>
+                      <div className="text-[10px] font-semibold text-zinc-500">
+                        {routeInfo.distanceKm <= 4.0 ? (
+                          <span className="text-emerald-800 font-bold bg-emerald-100 px-1.5 py-0.5 rounded">
+                            ₹30 Flat Delivery Zone (≤ 4km)
+                          </span>
+                        ) : (
+                          <span className="text-amber-800 font-semibold bg-amber-50 px-1.5 py-0.5 rounded">
+                            ₹30 + ₹14/km beyond 4km
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap items-center justify-between text-[11px] bg-white p-2.5 rounded-xl border border-emerald-100 gap-2">
+                    <span className="text-zinc-600 font-medium">Bunk Real-Time Sourcing Rates:</span>
+                    <span className="font-bold text-zinc-900">
+                      Petrol: <span className="text-emerald-800 font-extrabold">₹{connectedBunk.petrol_price}/L</span> • Diesel: <span className="text-emerald-800 font-extrabold">₹{connectedBunk.diesel_price}/L</span>
+                    </span>
+                  </div>
+                </div>
+              )}
+
               <div className="space-y-3">
                 <div>
                   <label className="block text-xs font-bold text-zinc-700 mb-1">
@@ -390,10 +469,10 @@ function RequestFuelContent() {
                     <Fuel className="w-5 h-5 text-emerald-700" />
                   </div>
                   <div className="text-base font-extrabold text-emerald-900">
-                    ₹{DEFAULT_FUEL_RATES.PETROL}/L
+                    ₹{connectedBunk ? connectedBunk.petrol_price : DEFAULT_FUEL_RATES.PETROL}/L
                   </div>
                   <div className="text-[11px] text-zinc-500 mt-1">
-                    Cars, motorcycles, scooters
+                    {connectedBunk ? `${connectedBunk.brand} Live Bunk Rate` : "Cars, motorcycles, scooters"}
                   </div>
                 </div>
 
@@ -410,22 +489,41 @@ function RequestFuelContent() {
                     <Fuel className="w-5 h-5 text-emerald-700" />
                   </div>
                   <div className="text-base font-extrabold text-emerald-900">
-                    ₹{DEFAULT_FUEL_RATES.DIESEL}/L
+                    ₹{connectedBunk ? connectedBunk.diesel_price : DEFAULT_FUEL_RATES.DIESEL}/L
                   </div>
                   <div className="text-[11px] text-zinc-500 mt-1">
-                    SUVs, commercial transport, cabs
+                    {connectedBunk ? `${connectedBunk.brand} Live Bunk Rate` : "SUVs, transport, cabs"}
                   </div>
                 </div>
               </div>
 
-              {/* Quantity Options */}
-              <div className="space-y-2">
-                <div className="flex justify-between text-xs font-bold text-zinc-800">
-                  <span>Quantity (Litres):</span>
-                  <span className="text-emerald-800 text-sm">{quantity} Litres</span>
+              {/* Quantity Options - Selectable from 1 Litre itself */}
+              <div className="space-y-2.5">
+                <div className="flex justify-between items-center text-xs font-bold text-zinc-800">
+                  <span>Emergency Quantity:</span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+                      className="w-7 h-7 rounded-lg bg-zinc-100 hover:bg-zinc-200 text-zinc-800 font-extrabold flex items-center justify-center transition active:scale-95"
+                    >
+                      -
+                    </button>
+                    <span className="text-emerald-900 text-sm font-extrabold min-w-[65px] text-center">
+                      {quantity} Litre{quantity > 1 ? "s" : ""}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setQuantity((q) => Math.min(20, q + 1))}
+                      className="w-7 h-7 rounded-lg bg-zinc-100 hover:bg-zinc-200 text-zinc-800 font-extrabold flex items-center justify-center transition active:scale-95"
+                    >
+                      +
+                    </button>
+                  </div>
                 </div>
-                <div className="grid grid-cols-4 gap-2">
-                  {[2, 5, 10, 15].map((amt) => (
+
+                <div className="grid grid-cols-4 sm:grid-cols-7 gap-1.5">
+                  {[1, 2, 3, 5, 10, 15, 20].map((amt) => (
                     <button
                       key={amt}
                       type="button"
@@ -436,10 +534,19 @@ function RequestFuelContent() {
                           : "bg-zinc-50 text-zinc-700 border-zinc-200 hover:bg-zinc-100"
                       }`}
                     >
-                      {amt} Litres
+                      {amt}L
                     </button>
                   ))}
                 </div>
+
+                {quantity === 1 && (
+                  <div className="p-2.5 bg-amber-50 border border-amber-200 text-amber-900 text-xs rounded-xl flex items-start gap-2">
+                    <Sparkles className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <span className="font-bold">1 Litre Quick Restart:</span> Ultra-light sealed container sufficient to safely restart a stalled engine and cruise to the nearest fuel station.
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Vehicle Info */}
@@ -642,6 +749,13 @@ function RequestFuelContent() {
             {/* Selected item overview */}
             <div className="space-y-2 text-xs">
               <div className="flex justify-between py-1 border-b border-zinc-50">
+                <span className="text-zinc-500">Connected Bunk:</span>
+                <span className="font-bold text-emerald-900 text-right">
+                  {connectedBunk ? `${connectedBunk.name}` : "BPCL Auto Care Indiranagar"}
+                </span>
+              </div>
+
+              <div className="flex justify-between py-1 border-b border-zinc-50">
                 <span className="text-zinc-500">Fuel Selected:</span>
                 <span className="font-bold text-zinc-900">
                   {fuelType === "PETROL" ? "Petrol (Speed 91)" : "Diesel (BS-VI)"}
@@ -650,7 +764,7 @@ function RequestFuelContent() {
 
               <div className="flex justify-between py-1 border-b border-zinc-50">
                 <span className="text-zinc-500">Requested Volume:</span>
-                <span className="font-bold text-zinc-900">{quantity} Litres</span>
+                <span className="font-bold text-zinc-900">{quantity} Litre{quantity > 1 ? "s" : ""}</span>
               </div>
 
               <div className="flex justify-between py-1 border-b border-zinc-50">
@@ -663,7 +777,7 @@ function RequestFuelContent() {
               <div className="flex justify-between py-1 border-b border-zinc-50">
                 <span className="text-zinc-500">Estimated Road Distance:</span>
                 <span className="font-bold text-zinc-900">
-                  {routeInfo.distanceKm} km (OSRM Road Network)
+                  {routeInfo.distanceKm} km (from connected bunk)
                 </span>
               </div>
             </div>
@@ -671,7 +785,7 @@ function RequestFuelContent() {
             {/* Transparent ₹30 Breakdown */}
             <div className="bg-zinc-50 rounded-2xl p-4 border border-zinc-200 space-y-2 text-xs">
               <div className="flex justify-between text-zinc-600">
-                <span>Fuel ({quantity}L @ ₹{quote.pricePerLitre}/L):</span>
+                <span>Fuel ({quantity}L @ ₹{quote.pricePerLitre}/L bunk rate):</span>
                 <span className="font-semibold text-zinc-900">
                   {formatCurrency(quote.fuelSubtotal)}
                 </span>

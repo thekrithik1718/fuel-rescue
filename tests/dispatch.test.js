@@ -138,3 +138,29 @@ describe("Dispatch Engine - Atomic Concurrency Guard", () => {
     expect([partner1Id, partner2Id]).toContain(finalOrder.partner_id);
   });
 });
+
+describe("Dispatch Engine - Nearest Petrol Bunk Discovery & Localized Pricing", () => {
+  it("should dynamically connect customer to closest petrol bunk and adopt its localized rate", async () => {
+    const { findNearestPetrolBunk } = await import("../src/lib/petrol-bunks");
+
+    // Case 1: Customer stranded in Indiranagar (12.9716, 77.6412)
+    const indiranagarResult = findNearestPetrolBunk(12.9716, 77.6412, "PETROL");
+    expect(indiranagarResult.nearestBunk.id).toBe("bunk-bpcl-indiranagar");
+    expect(indiranagarResult.nearestBunk.brand).toBe("BPCL");
+    expect(indiranagarResult.fuelPricePerLitre).toBe(102.50);
+    expect(indiranagarResult.distanceKm).toBeLessThan(4.0); // Within ₹30 flat zone
+
+    // Case 2: Customer stranded in Koramangala (12.9350, 77.6240)
+    const koramangalaResult = findNearestPetrolBunk(12.9350, 77.6240, "PETROL");
+    expect(koramangalaResult.nearestBunk.id).toBe("bunk-iocl-koramangala");
+    expect(koramangalaResult.nearestBunk.brand).toBe("IOCL");
+    expect(koramangalaResult.fuelPricePerLitre).toBe(102.10); // Koramangala localized rate
+
+    // Case 3: Customer stranded in Whitefield (12.9850, 77.7300)
+    const whitefieldResult = findNearestPetrolBunk(12.9850, 77.7300, "DIESEL");
+    expect(whitefieldResult.nearestBunk.id).toBe("bunk-shell-whitefield");
+    expect(whitefieldResult.nearestBunk.brand).toBe("Shell");
+    expect(whitefieldResult.fuelPricePerLitre).toBe(89.60); // Shell diesel rate
+  });
+});
+

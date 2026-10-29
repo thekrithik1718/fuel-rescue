@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { calculateOrderPrice } from "@/lib/pricing";
 import { mockStore, INITIAL_SUPPLIERS } from "@/lib/mock-store";
 import { ORDER_STATUS } from "@/lib/state-machine";
+import { findNearestPetrolBunk } from "@/lib/petrol-bunks";
 
 export async function POST(request) {
   try {
@@ -36,19 +37,32 @@ export async function POST(request) {
       );
     }
 
+    // DYNAMIC NEAREST PETROL BUNK DISCOVERY
+    // Finds the closest authorized fuel bunk based on customer GPS coordinates
+    const nearestResult = findNearestPetrolBunk(Number(customerLat), Number(customerLng), fuelType);
+    const nearestBunk = nearestResult.nearestBunk;
+    const effectiveDistanceKm = Number(distanceKm) > 0 ? Number(distanceKm) : nearestResult.distanceKm;
+
     // SERVER-AUTHORITATIVE PRICE CALCULATION
     // Any client-submitted total or fee is explicitly discarded!
+    // Uses the nearest bunk's specific fuel price per litre
     const quote = calculateOrderPrice({
       fuelType,
       quantityLitres: Number(quantityLitres),
-      distanceKm: Number(distanceKm || 1.0),
+      distanceKm: effectiveDistanceKm,
+      customFuelRate: nearestResult.fuelPricePerLitre,
     });
 
     const newOrder = mockStore.createOrder({
       customer_id: customerId || "44444444-4444-4444-4444-444444444444",
       customer_name: customerName || "Customer",
       customer_phone: customerPhone || "+91 98765 11111",
-      supplier_id: INITIAL_SUPPLIERS[0].id,
+      supplier_id: nearestBunk.id,
+      supplier_name: nearestBunk.trade_name,
+      supplier_brand: nearestBunk.brand,
+      supplier_address: nearestBunk.address,
+      supplier_lat: nearestBunk.lat,
+      supplier_lng: nearestBunk.lng,
       fuel_type: quote.fuelType,
       quantity_litres: quote.quantityLitres,
       fuel_price_per_litre: quote.pricePerLitre,

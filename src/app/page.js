@@ -158,11 +158,27 @@ export default function HomePage() {
                   <div className="space-y-1.5">
                     <div className="flex justify-between text-xs font-semibold text-zinc-700">
                       <span>Emergency Quantity:</span>
-                      <span className="text-emerald-800 font-bold">{demoLitres} Litres</span>
+                      <span className="text-emerald-800 font-bold">{demoLitres} Litre{demoLitres > 1 ? "s" : ""}</span>
+                    </div>
+                    <div className="flex gap-1.5 mb-1.5">
+                      {[1, 2, 5, 10].map((litres) => (
+                        <button
+                          key={litres}
+                          type="button"
+                          onClick={() => setDemoLitres(litres)}
+                          className={`text-[11px] font-bold py-1 px-2.5 rounded-lg border transition ${
+                            demoLitres === litres
+                              ? "bg-emerald-800 text-white border-emerald-900 shadow-sm"
+                              : "bg-white text-zinc-700 border-zinc-200 hover:bg-zinc-100"
+                          }`}
+                        >
+                          {litres}L
+                        </button>
+                      ))}
                     </div>
                     <input
                       type="range"
-                      min="2"
+                      min="1"
                       max="15"
                       step="1"
                       value={demoLitres}
@@ -170,7 +186,7 @@ export default function HomePage() {
                       className="w-full accent-emerald-800 h-2 bg-zinc-200 rounded-lg cursor-pointer"
                     />
                     <div className="flex justify-between text-[10px] text-zinc-400">
-                      <span>2L (Emergency restart)</span>
+                      <span>1L (Quick restart)</span>
                       <span>15L (Canister cap)</span>
                     </div>
                   </div>
@@ -178,7 +194,7 @@ export default function HomePage() {
                   {/* Distance Slider */}
                   <div className="space-y-1.5">
                     <div className="flex justify-between text-xs font-semibold text-zinc-700">
-                      <span>Distance from Nearest Depot:</span>
+                      <span>Distance from Nearest Bunk:</span>
                       <span className="text-emerald-800 font-bold">{demoDistance} km</span>
                     </div>
                     <input

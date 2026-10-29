@@ -13,7 +13,7 @@ export const DEFAULT_PRICING_CONFIG = {
   baseDeliveryFee: 30, // ₹30 up to and including 4 km
   includedDistanceKm: 4.0,
   additionalPerKmRate: 14, // ₹14 per extra km
-  minQuantityLitres: 2,
+  minQuantityLitres: 1, // Quantity selectable from 1 Litre
   maxQuantityLitres: 20, // PESO safety container limit for emergency mobile delivery
   emergencyHandlingFee: 15, // Standard safety equipment & PESO certified canister fee
   gstPercentage: 0, // In India, retail petroleum is currently outside GST (VAT applies at depot level)
