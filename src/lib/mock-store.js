@@ -313,6 +313,20 @@ class MockStore {
     return this.state.orders.find((o) => o.id === id || o.order_number === id);
   }
 
+  upsertOrder(order) {
+    if (!order || !order.id) return null;
+    const existingIndex = this.state.orders.findIndex(
+      (o) => o.id === order.id || o.order_number === order.id
+    );
+    if (existingIndex >= 0) {
+      this.state.orders[existingIndex] = { ...this.state.orders[existingIndex], ...order };
+    } else {
+      this.state.orders = [order, ...this.state.orders];
+    }
+    this.saveState();
+    return this.state.orders.find((o) => o.id === order.id);
+  }
+
   createOrder(orderData) {
     const orderNumber = `FR-${Math.floor(1000 + Math.random() * 9000)}`;
     const newOrder = {

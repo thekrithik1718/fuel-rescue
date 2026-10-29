@@ -52,21 +52,63 @@ function OrderTrackingContent() {
   const [cancelReason, setCancelReason] = useState("");
   const simulationIntervalRef = useRef(null);
 
-  // Load and subscribe to order updates from mockStore
+  const [loadError, setLoadError] = useState(false);
+
+  // Load and subscribe to order updates from mockStore with API fallback
   useEffect(() => {
-    function refresh() {
+    let isMounted = true;
+
+    async function load() {
+      // 1. Check local mockStore
       const found = mockStore.getOrderById(orderId);
       if (found) {
-        setOrder({ ...found });
-        if (found.partner_lat && found.partner_lng) {
-          setPartnerCoords([found.partner_lat, found.partner_lng]);
+        if (isMounted) {
+          setOrder({ ...found });
+          if (found.partner_lat && found.partner_lng) {
+            setPartnerCoords([found.partner_lat, found.partner_lng]);
+          }
         }
+        return;
+      }
+
+      // 2. Fallback: Fetch from server API
+      try {
+        const res = await fetch(`/api/orders/${orderId}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success && data.order && isMounted) {
+            mockStore.upsertOrder(data.order);
+            setOrder({ ...data.order });
+            if (data.order.partner_lat && data.order.partner_lng) {
+              setPartnerCoords([data.order.partner_lat, data.order.partner_lng]);
+            }
+            return;
+          }
+        }
+      } catch (err) {
+        console.warn("Could not fetch order from server:", err);
+      }
+
+      if (isMounted) {
+        setLoadError(true);
       }
     }
 
-    refresh();
-    const unsubscribe = mockStore.subscribe(refresh);
-    return () => unsubscribe();
+    load();
+    const unsubscribe = mockStore.subscribe(() => {
+      const current = mockStore.getOrderById(orderId);
+      if (current && isMounted) {
+        setOrder({ ...current });
+        if (current.partner_lat && current.partner_lng) {
+          setPartnerCoords([current.partner_lat, current.partner_lng]);
+        }
+      }
+    });
+
+    return () => {
+      isMounted = false;
+      unsubscribe();
+    };
   }, [orderId]);
 
   // Compute road route geometry between partner and customer
@@ -142,6 +184,41 @@ function OrderTrackingContent() {
   };
 
   if (!order) {
+    if (loadError) {
+      return (
+        <div className="max-w-md mx-auto px-4 py-20 text-center space-y-4">
+          <div className="w-14 h-14 rounded-2xl bg-amber-50 border border-amber-200 text-amber-700 flex items-center justify-center mx-auto">
+            <AlertTriangle className="w-7 h-7" />
+          </div>
+          <h2 className="text-xl font-bold text-zinc-950">Rescue Request Session Expired</h2>
+          <p className="text-xs text-zinc-500 leading-relaxed">
+            Order reference <span className="font-mono font-bold text-zinc-700">#{orderId}</span> was created in a previous session or server instance.
+          </p>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-2 pt-2">
+            <button
+              onClick={() => window.location.reload()}
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 bg-emerald-800 hover:bg-emerald-900 text-white font-bold text-xs px-4 py-2.5 rounded-xl transition shadow-sm"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              <span>Retry Search</span>
+            </button>
+            <Link
+              href="/orders"
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 bg-zinc-100 hover:bg-zinc-200 text-zinc-800 font-semibold text-xs px-4 py-2.5 rounded-xl transition"
+            >
+              <span>View All Orders</span>
+            </Link>
+            <Link
+              href="/request"
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 bg-zinc-900 hover:bg-zinc-800 text-white font-semibold text-xs px-4 py-2.5 rounded-xl transition"
+            >
+              <span>New Request</span>
+            </Link>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="max-w-4xl mx-auto px-4 py-20 text-center">
         <div className="w-12 h-12 rounded-full border-4 border-emerald-800 border-t-transparent animate-spin mx-auto mb-4" />

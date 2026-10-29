@@ -53,14 +53,43 @@ function PartnerOrderConsoleContent() {
     isLoadingRoute: false,
   });
 
+  const [loadError, setLoadError] = useState(false);
+
   useEffect(() => {
-    function load() {
+    let isMounted = true;
+    async function load() {
       const found = mockStore.getOrderById(orderId);
-      if (found) setOrder({ ...found });
+      if (found) {
+        if (isMounted) setOrder({ ...found });
+        return;
+      }
+
+      try {
+        const res = await fetch(`/api/orders/${orderId}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success && data.order && isMounted) {
+            mockStore.upsertOrder(data.order);
+            setOrder({ ...data.order });
+            return;
+          }
+        }
+      } catch (e) {
+        console.warn("Could not fetch order from API:", e);
+      }
+
+      if (isMounted) setLoadError(true);
     }
+
     load();
-    const unsub = mockStore.subscribe(load);
-    return () => unsub();
+    const unsub = mockStore.subscribe(() => {
+      const updated = mockStore.getOrderById(orderId);
+      if (updated && isMounted) setOrder({ ...updated });
+    });
+    return () => {
+      isMounted = false;
+      unsub();
+    };
   }, [orderId]);
 
   // Recalculate route between partner and customer destination
@@ -96,6 +125,28 @@ function PartnerOrderConsoleContent() {
   }, [order?.customer_lat, order?.customer_lng, order?.partner_lat, order?.partner_lng]);
 
   if (!order) {
+    if (loadError) {
+      return (
+        <div className="max-w-md mx-auto px-4 py-20 text-center space-y-4">
+          <div className="w-14 h-14 rounded-2xl bg-amber-50 border border-amber-200 text-amber-700 flex items-center justify-center mx-auto">
+            <AlertCircle className="w-7 h-7" />
+          </div>
+          <h2 className="text-xl font-bold text-zinc-950">Fulfillment Order Not Found</h2>
+          <p className="text-xs text-zinc-500 leading-relaxed">
+            Order #{orderId} is no longer available in the active dispatch queue.
+          </p>
+          <div className="flex items-center justify-center gap-2 pt-2">
+            <Link
+              href="/partner"
+              className="inline-flex items-center justify-center gap-1.5 bg-emerald-800 hover:bg-emerald-900 text-white font-bold text-xs px-4 py-2.5 rounded-xl transition shadow-sm"
+            >
+              <span>Back to Partner Broadcast</span>
+            </Link>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="max-w-4xl mx-auto px-4 py-20 text-center">
         <div className="w-10 h-10 rounded-full border-4 border-emerald-800 border-t-transparent animate-spin mx-auto mb-3" />

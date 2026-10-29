@@ -224,13 +224,18 @@ function RequestFuelContent() {
 
       const createdOrder = data.order;
 
-      // Automatically assign nearby partner after 1.5s for seamless demo
-      setTimeout(() => {
-        const availablePartner = mockStore.getPartners().find((p) => p.is_available && p.safety_kit_verified);
-        if (availablePartner) {
+      // Save order into client-side mockStore so live tracking page has instant access
+      mockStore.upsertOrder(createdOrder);
+
+      // Auto-assign available delivery partner in client store for seamless demo experience
+      const availablePartner = mockStore.getPartners().find((p) => p.is_available && p.safety_kit_verified);
+      if (availablePartner) {
+        try {
           mockStore.assignPartnerToOrder(createdOrder.id, availablePartner.id);
+        } catch (e) {
+          console.warn("Auto-assignment deferred:", e);
         }
-      }, 1500);
+      }
 
       // Redirect immediately to live tracking
       router.push(`/orders/${createdOrder.id}`);
