@@ -1,0 +1,99 @@
+@import "tailwindcss";
+@import "leaflet/dist/leaflet.css";
+
+:root {
+  --background: #fbfbf9;
+  --foreground: #090d0b;
+  --forest-950: #04140c;
+  --forest-900: #08281a;
+  --forest-800: #0f3f2b;
+  --forest-700: #165b3e;
+  --forest-600: #1d7953;
+  --forest-500: #269a6a;
+  --amber-accent: #f59e0b;
+  --amber-dark: #b45309;
+  --card-bg: #ffffff;
+  --card-border: #e2e8e3;
+  --surface-muted: #f3f5f3;
+}
+
+@theme inline {
+  --color-forest-950: var(--forest-950);
+  --color-forest-900: var(--forest-900);
+  --color-forest-800: var(--forest-800);
+  --color-forest-700: var(--forest-700);
+  --color-forest-600: var(--forest-600);
+  --color-forest-500: var(--forest-500);
+  --color-amber-accent: var(--amber-accent);
+  --color-amber-dark: var(--amber-dark);
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Custom Leaflet Map Overrides */
+.leaflet-container {
+  width: 100%;
+  height: 100%;
+  border-radius: 1rem;
+  z-index: 10;
+}
+
+.custom-pulsing-marker {
+  position: relative;
+}
+
+.custom-pulsing-marker::before {
+  content: "";
+  position: absolute;
+  top: -8px;
+  left: -8px;
+  width: 36px;
+  height: 36px;
+  background: rgba(239, 68, 68, 0.35);
+  border-radius: 50%;
+  animation: pulse-ring 1.8s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+}
+
+.custom-partner-marker::before {
+  content: "";
+  position: absolute;
+  top: -8px;
+  left: -8px;
+  width: 40px;
+  height: 40px;
+  background: rgba(16, 185, 129, 0.4);
+  border-radius: 50%;
+  animation: pulse-ring 1.5s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+}
+
+@keyframes pulse-ring {
+  0% {
+    transform: scale(0.6);
+    opacity: 0.9;
+  }
+  80%, 100% {
+    transform: scale(1.8);
+    opacity: 0;
+  }
+}
+
+/* Subtle scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
+}
