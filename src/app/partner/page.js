@@ -7,6 +7,8 @@ import { useAuth } from "@/lib/auth-context";
 import { ORDER_STATUS, getStatusDetails } from "@/lib/state-machine";
 import { validatePartnerAcceptance } from "@/lib/dispatch";
 import { formatCurrency, formatDate } from "@/lib/utils";
+import { getGoogleMapsNavigationUrl } from "@/lib/geo-utils";
+import GoogleMapsNavButton from "@/components/navigation/GoogleMapsNavButton";
 import {
   Truck,
   CheckCircle2,
@@ -241,15 +243,15 @@ export default function PartnerDashboardPage() {
               <ArrowRight className="w-4 h-4" />
             </Link>
 
-            <a
-              href={`https://www.google.com/maps/dir/?api=1&destination=${activeOrder.customer_lat},${activeOrder.customer_lng}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 bg-amber-400 hover:bg-amber-500 text-zinc-950 font-bold text-xs px-4 py-3 rounded-xl transition shadow-md"
-            >
-              <Navigation className="w-3.5 h-3.5" />
-              <span>Turn-by-Turn GPS Navigation</span>
-            </a>
+            <GoogleMapsNavButton
+              latitude={activeOrder.customer_lat}
+              longitude={activeOrder.customer_lng}
+              destinationName={activeOrder.customer_name}
+              label="Turn-by-Turn GPS Navigation"
+              size="md"
+              showSubtext={false}
+              className="!w-auto bg-amber-400 hover:bg-amber-500 !text-zinc-950 shadow-md font-bold"
+            />
 
             <a
               href={`tel:${activeOrder.customer_phone || "+919876511111"}`}
@@ -316,14 +318,16 @@ export default function PartnerDashboardPage() {
                     <span className="font-mono font-bold text-zinc-800 bg-zinc-200/70 px-2 py-0.5 rounded">
                       {req.customer_lat.toFixed(6)}, {req.customer_lng.toFixed(6)}
                     </span>
-                    <a
-                      href={`https://www.google.com/maps/dir/?api=1&destination=${req.customer_lat},${req.customer_lng}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-emerald-700 hover:underline font-semibold ml-auto"
-                    >
-                      Preview in Navigation →
-                    </a>
+                    {getGoogleMapsNavigationUrl(req.customer_lat, req.customer_lng) && (
+                      <a
+                        href={getGoogleMapsNavigationUrl(req.customer_lat, req.customer_lng)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-emerald-700 hover:underline font-semibold ml-auto"
+                      >
+                        Preview in Google Maps →
+                      </a>
+                    )}
                   </div>
                 )}
 

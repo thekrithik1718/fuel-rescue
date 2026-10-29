@@ -249,8 +249,11 @@ function OrderTrackingContent() {
               customerPin={[order.customer_lat, order.customer_lng]}
               partnerPin={partnerCoords}
               routeGeometry={routeGeometry}
+              estimatedDistanceKm={order.estimated_distance_km}
+              estimatedDurationMins={order.estimated_duration_mins}
               height="400px"
               interactive={true}
+              showRecenter={true}
             />
 
             {/* Verification OTP Handshake Banner */}

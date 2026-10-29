@@ -7,6 +7,8 @@ import dynamic from "next/dynamic";
 import { mockStore } from "@/lib/mock-store";
 import { ORDER_STATUS, getStatusDetails, validateStateTransition, ROLES } from "@/lib/state-machine";
 import { formatCurrency } from "@/lib/utils";
+import { getRouteDetails } from "@/lib/routing";
+import GoogleMapsNavButton from "@/components/navigation/GoogleMapsNavButton";
 import {
   ChevronLeft,
   Navigation,
@@ -44,6 +46,12 @@ function PartnerOrderConsoleContent() {
   const [otpInput, setOtpInput] = useState("");
   const [errorMsg, setErrorMsg] = useState(null);
   const [successMsg, setSuccessMsg] = useState(null);
+  const [routeInfo, setRouteInfo] = useState({
+    geometry: null,
+    distanceKm: null,
+    durationMinutes: null,
+    isLoadingRoute: false,
+  });
 
   useEffect(() => {
     function load() {
@@ -54,6 +62,38 @@ function PartnerOrderConsoleContent() {
     const unsub = mockStore.subscribe(load);
     return () => unsub();
   }, [orderId]);
+
+  // Recalculate route between partner and customer destination
+  useEffect(() => {
+    if (!order || !order.customer_lat || !order.customer_lng) return;
+
+    let isCancelled = false;
+    const origin =
+      order.partner_lat && order.partner_lng
+        ? { lat: order.partner_lat, lng: order.partner_lng }
+        : order.supplier_lat && order.supplier_lng
+        ? { lat: order.supplier_lat, lng: order.supplier_lng }
+        : { lat: 12.9752, lng: 77.5990 };
+
+    const destination = { lat: order.customer_lat, lng: order.customer_lng };
+
+    setRouteInfo((prev) => ({ ...prev, isLoadingRoute: true }));
+
+    getRouteDetails(origin, destination).then((res) => {
+      if (!isCancelled) {
+        setRouteInfo({
+          geometry: res.geometry,
+          distanceKm: res.distanceKm,
+          durationMinutes: res.durationMinutes,
+          isLoadingRoute: false,
+        });
+      }
+    });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [order?.customer_lat, order?.customer_lng, order?.partner_lat, order?.partner_lng]);
 
   if (!order) {
     return (
@@ -263,23 +303,27 @@ function PartnerOrderConsoleContent() {
               </div>
             </div>
 
-            {/* Turn-by-Turn GPS Navigation CTA */}
-            <a
-              href={`https://www.google.com/maps/dir/?api=1&destination=${order.customer_lat},${order.customer_lng}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="w-full inline-flex items-center justify-center gap-2 bg-gradient-to-r from-emerald-800 to-emerald-950 hover:from-emerald-900 hover:to-black text-white font-bold text-xs py-2.5 rounded-xl shadow-sm transition"
-            >
-              <Navigation className="w-3.5 h-3.5 text-amber-400" />
-              <span>Launch Turn-by-Turn GPS Navigation (Google Maps)</span>
-              <ArrowRight className="w-3.5 h-3.5" />
-            </a>
+            {/* Turn-by-Turn GPS Navigation Button */}
+            <GoogleMapsNavButton
+              latitude={order.customer_lat}
+              longitude={order.customer_lng}
+              destinationName={order.customer_name || "Customer Vehicle"}
+              label="Navigate to Customer (Google Maps)"
+              size="lg"
+            />
+
+            {/* Interactive Leaflet Road Map with Route Polyline */}
             <DynamicMap
               center={[order.customer_lat, order.customer_lng]}
               customerPin={[order.customer_lat, order.customer_lng]}
               partnerPin={order.partner_lat ? [order.partner_lat, order.partner_lng] : null}
-              height="300px"
-              interactive={false}
+              routeGeometry={routeInfo.geometry}
+              estimatedDistanceKm={routeInfo.distanceKm}
+              estimatedDurationMins={routeInfo.durationMinutes}
+              isLoadingRoute={routeInfo.isLoadingRoute}
+              height="340px"
+              interactive={true}
+              showRecenter={true}
             />
           </div>
         </div>
