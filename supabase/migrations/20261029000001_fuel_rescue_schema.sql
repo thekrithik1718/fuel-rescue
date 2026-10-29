@@ -205,6 +205,60 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_single_active_partner_per_order
 ON public.partner_assignments (order_id)
 WHERE status = 'ACTIVE';
 
+-- ATOMIC CONCURRENCY-SAFE PARTNER ACCEPTANCE FUNCTION
+CREATE OR REPLACE FUNCTION public.accept_order_atomic(
+  p_order_id UUID,
+  p_partner_id UUID
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  v_order RECORD;
+  v_partner RECORD;
+BEGIN
+  -- 1. Verify partner exists and is on duty
+  SELECT * INTO v_partner FROM public.delivery_partners
+  WHERE id = p_partner_id AND status = 'VERIFIED' AND is_available = TRUE;
+
+  IF NOT FOUND THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Partner not verified or currently off-duty');
+  END IF;
+
+  -- 2. Atomic single-statement conditional row update with lock
+  -- Only succeeds if order is currently unassigned or offered, and in dispatchable status
+  UPDATE public.orders
+  SET partner_id = p_partner_id,
+      status = 'ACCEPTED',
+      updated_at = NOW()
+  WHERE id = p_order_id
+    AND (partner_id IS NULL OR partner_id = p_partner_id)
+    AND status IN ('SEARCHING_FOR_PARTNER', 'PARTNER_ASSIGNED')
+  RETURNING * INTO v_order;
+
+  -- If 0 rows updated, another partner already claimed this order or order was cancelled
+  IF NOT FOUND THEN
+    RETURN jsonb_build_object(
+      'success', false,
+      'error', 'Conflict: Order already accepted by another nearby partner or no longer available'
+    );
+  END IF;
+
+  -- 3. Record active assignment (guaranteed unique by idx_single_active_partner_per_order)
+  INSERT INTO public.partner_assignments (order_id, partner_id, status, assigned_at, accepted_at)
+  VALUES (p_order_id, p_partner_id, 'ACTIVE', NOW(), NOW())
+  ON CONFLICT (order_id) WHERE status = 'ACTIVE'
+  DO UPDATE SET partner_id = p_partner_id, accepted_at = NOW();
+
+  -- 4. Record audit status history
+  INSERT INTO public.order_status_history (order_id, status, changed_by_role, changed_by_id, notes)
+  VALUES (p_order_id, 'ACCEPTED', 'PARTNER', v_partner.profile_id, 'Accepted via atomic database lock');
+
+  RETURN jsonb_build_object('success', true, 'order', row_to_json(v_order));
+END;
+$$;
+
 -- 13. PARTNER LOCATION UPDATES (Breadcrumbs during active EN_ROUTE)
 CREATE TABLE IF NOT EXISTS public.partner_location_updates (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),

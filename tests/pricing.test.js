@@ -8,8 +8,19 @@ describe("Pricing Engine - Core ₹30 up to 4km Delivery Fee Policy", () => {
     expect(calculateDeliveryFee(3.99)).toBe(30);
   });
 
-  it("should charge exactly ₹30 for distance equal to 4.0 km", () => {
+  it("should charge exactly ₹30 for distance equal to 4.0 km (boundary inclusive)", () => {
     expect(calculateDeliveryFee(4.0)).toBe(30);
+  });
+
+  it("should rigorously verify exact prompt requirement: 0 km (₹30), 4 km (₹30), and 5 km (₹44)", () => {
+    // 0 km: exactly ₹30 flat fee
+    expect(calculateDeliveryFee(0)).toBe(30);
+
+    // 4 km: exactly ₹30 flat fee (inclusive)
+    expect(calculateDeliveryFee(4)).toBe(30);
+
+    // 5 km: ₹30 + (5 - 4) * 14 = ₹44
+    expect(calculateDeliveryFee(5)).toBe(44);
   });
 
   it("should calculate additional per-km charge for distances greater than 4.0 km", () => {

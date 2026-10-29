@@ -377,6 +377,60 @@ class MockStore {
     });
   }
 
+  atomicAcceptOrder(orderId, partnerId) {
+    const partner = this.state.partners.find((p) => p.id === partnerId);
+    if (!partner) {
+      return { success: false, error: "Partner not found." };
+    }
+
+    const orderIndex = this.state.orders.findIndex(
+      (o) => o.id === orderId || o.order_number === orderId
+    );
+    if (orderIndex === -1) {
+      return { success: false, error: "Order not found." };
+    }
+
+    const order = this.state.orders[orderIndex];
+
+    // Concurrency CAS Check: Reject if already claimed or in an active fulfillment state
+    if (
+      [ORDER_STATUS.ACCEPTED, ORDER_STATUS.PREPARING, ORDER_STATUS.EN_ROUTE, ORDER_STATUS.ARRIVED, ORDER_STATUS.COMPLETED].includes(order.status)
+    ) {
+      return {
+        success: false,
+        error: "Conflict: This rescue request was already accepted by another nearby rescuer.",
+      };
+    }
+
+    if (order.status === ORDER_STATUS.CANCELLED) {
+      return {
+        success: false,
+        error: "This assistance request was cancelled by the customer.",
+      };
+    }
+
+    // Atomic assignment
+    const updated = {
+      ...order,
+      status: ORDER_STATUS.ACCEPTED,
+      partner_id: partner.id,
+      partner_name: partner.name,
+      partner_phone: partner.phone,
+      partner_plate: partner.vehicle_plate,
+      partner_lat: partner.current_lat,
+      partner_lng: partner.current_lng,
+      updated_at: new Date().toISOString(),
+      status_history: [
+        ...(order.status_history || []),
+        { status: ORDER_STATUS.ACCEPTED, timestamp: new Date().toISOString() },
+      ],
+    };
+
+    this.state.orders[orderIndex] = updated;
+    this.saveState();
+    return { success: true, order: updated };
+  }
+
   updatePartnerLocation(orderId, lat, lng) {
     const order = this.state.orders.find((o) => o.id === orderId);
     if (order) {

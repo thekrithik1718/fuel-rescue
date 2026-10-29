@@ -100,4 +100,41 @@ describe("Dispatch Engine - Atomic Concurrency Guard", () => {
     expect(result.success).toBe(false);
     expect(result.error).toContain("cancelled");
   });
+
+  it("should ensure simultaneous acceptance attempts result in exactly ONE winner and ONE conflict error", async () => {
+    // Import mockStore
+    const { mockStore } = await import("../src/lib/mock-store");
+
+    // Create a fresh test order in SEARCHING_FOR_PARTNER status
+    const testOrder = mockStore.createOrder({
+      fuel_type: "PETROL",
+      quantity_litres: 5,
+      delivery_address: "Koramangala, Bengaluru",
+      status: ORDER_STATUS.SEARCHING_FOR_PARTNER,
+      customer_lat: 12.9352,
+      customer_lng: 77.6245,
+    });
+
+    const partner1Id = "dddd1111-1111-1111-1111-111111111111"; // Rajesh Kumar
+    const partner2Id = "dddd2222-2222-2222-2222-222222222222"; // Vikram Singh
+
+    // Simulate simultaneous acceptance calls using Promise.all
+    const [res1, res2] = await Promise.all([
+      Promise.resolve(mockStore.atomicAcceptOrder(testOrder.id, partner1Id)),
+      Promise.resolve(mockStore.atomicAcceptOrder(testOrder.id, partner2Id)),
+    ]);
+
+    // Exactly one must succeed and one must fail with conflict
+    const successes = [res1, res2].filter((r) => r.success);
+    const failures = [res1, res2].filter((r) => !r.success);
+
+    expect(successes.length).toBe(1);
+    expect(failures.length).toBe(1);
+    expect(failures[0].error).toContain("Conflict");
+
+    // Verify resulting order status is ACCEPTED with the winning partner assigned
+    const finalOrder = mockStore.getOrderById(testOrder.id);
+    expect(finalOrder.status).toBe(ORDER_STATUS.ACCEPTED);
+    expect([partner1Id, partner2Id]).toContain(finalOrder.partner_id);
+  });
 });

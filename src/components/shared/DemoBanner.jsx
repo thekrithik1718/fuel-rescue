@@ -29,7 +29,7 @@ export default function DemoBanner() {
             Evaluation Simulation Mode
           </span>
           <span className="text-zinc-400 hidden sm:inline">
-            PESO-compliant doorstep fuel delivery prototype • Demonstrating ₹30/4km dispatch engine
+            Simulated Doorstep Fuel Delivery Demonstration • Testing ₹30/4km dispatch engine (Not a live commercial service)
           </span>
         </div>
 

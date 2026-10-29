@@ -19,6 +19,7 @@ import {
   AlertCircle,
   Truck,
   ArrowRight,
+  MapPin,
 } from "lucide-react";
 
 // Dynamically import Leaflet Map
@@ -244,12 +245,35 @@ function PartnerOrderConsoleContent() {
             )}
           </div>
 
-          {/* Road Navigation Map */}
-          <div className="bg-white rounded-3xl p-4 border border-zinc-200 shadow-sm space-y-2">
-            <div className="font-bold text-zinc-900 text-xs px-2 pt-1 flex items-center gap-1.5">
-              <Navigation className="w-3.5 h-3.5 text-emerald-700" />
-              <span>Customer Destination Map</span>
+          {/* Road Navigation Map & Exact GPS Location */}
+          <div className="bg-white rounded-3xl p-4 border border-zinc-200 shadow-sm space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2 px-2 pt-1">
+              <div className="flex items-center gap-1.5 text-zinc-900 font-bold text-xs">
+                <Navigation className="w-3.5 h-3.5 text-emerald-700" />
+                <span>Customer Destination Map</span>
+              </div>
+
+              {/* Exact GPS Coordinates */}
+              <div className="flex items-center gap-1.5 bg-zinc-50 border border-zinc-200 px-2.5 py-1 rounded-lg text-xs">
+                <MapPin className="w-3.5 h-3.5 text-red-500" />
+                <span className="font-semibold text-zinc-600">Exact GPS:</span>
+                <span className="font-mono font-bold text-zinc-950">
+                  {order.customer_lat.toFixed(6)}, {order.customer_lng.toFixed(6)}
+                </span>
+              </div>
             </div>
+
+            {/* Turn-by-Turn GPS Navigation CTA */}
+            <a
+              href={`https://www.google.com/maps/dir/?api=1&destination=${order.customer_lat},${order.customer_lng}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full inline-flex items-center justify-center gap-2 bg-gradient-to-r from-emerald-800 to-emerald-950 hover:from-emerald-900 hover:to-black text-white font-bold text-xs py-2.5 rounded-xl shadow-sm transition"
+            >
+              <Navigation className="w-3.5 h-3.5 text-amber-400" />
+              <span>Launch Turn-by-Turn GPS Navigation (Google Maps)</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </a>
             <DynamicMap
               center={[order.customer_lat, order.customer_lng]}
               customerPin={[order.customer_lat, order.customer_lng]}

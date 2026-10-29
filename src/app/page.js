@@ -102,8 +102,8 @@ export default function HomePage() {
                   <div className="text-[11px] text-zinc-500 font-medium">Average Rescuer ETA</div>
                 </div>
                 <div>
-                  <div className="text-xl font-bold text-zinc-900">100% PESO</div>
-                  <div className="text-[11px] text-zinc-500 font-medium">Explosion-Proof Cans</div>
+                  <div className="text-xl font-bold text-zinc-900">Safety First</div>
+                  <div className="text-[11px] text-zinc-500 font-medium">Proposed Canister Model</div>
                 </div>
                 <div>
                   <div className="text-xl font-bold text-zinc-900">₹30 Base</div>
@@ -314,24 +314,24 @@ export default function HomePage() {
               <div className="md:col-span-8 space-y-3">
                 <div className="inline-flex items-center gap-1.5 bg-amber-500/20 text-amber-300 border border-amber-500/30 text-xs font-bold px-3 py-1 rounded-full uppercase">
                   <ShieldCheck className="w-4 h-4 text-amber-400" />
-                  PESO & Petroleum Rules Compliant Architecture
+                  Statutory & Safety Architecture Notice
                 </div>
                 <h3 className="text-2xl font-bold text-white">
-                  Built Strictly for Safety & Regulatory Compliance
+                  Regulatory Landscape & Safety Protocols
                 </h3>
                 <p className="text-xs text-zinc-300 leading-relaxed max-w-2xl">
-                  Fuel delivery is a safety-critical service. Every Fuel Rescue order is filled at verified, authorized Oil Marketing Company retail outlets (such as IOCL and BPCL) into PESO-certified explosion-proof composite canisters. Delivery partners carry static ground grounding wires and fire extinguishers.
+                  Fuel transportation is subject to the Petroleum Act 1934 and PESO oversight. While commercial diesel doorstep delivery operates under regulated pilot frameworks for stationary power, petrol doorstep delivery remains heavily restricted for public safety. This prototype models a compliant workflow: authorized OMC depot dispensing, explosion-proof canister specifications, and mandatory anti-static grounding before any real-world pilot could be authorized.
                 </p>
               </div>
 
               <div className="md:col-span-4 flex flex-col gap-3">
                 <div className="bg-zinc-900/90 p-4 rounded-xl border border-zinc-800 text-xs space-y-1">
-                  <div className="text-emerald-400 font-bold">Authorized Depots Only</div>
-                  <div className="text-zinc-400 text-[11px]">Direct dealer verification before dispatch.</div>
+                  <div className="text-emerald-400 font-bold">Authorized OMC Depots</div>
+                  <div className="text-zinc-400 text-[11px]">Proposed licensed dealer network integration.</div>
                 </div>
                 <div className="bg-zinc-900/90 p-4 rounded-xl border border-zinc-800 text-xs space-y-1">
-                  <div className="text-amber-400 font-bold">Anti-Static Safety Kit</div>
-                  <div className="text-zinc-400 text-[11px]">Strict two-point grounding protocol during vehicle refuel.</div>
+                  <div className="text-amber-400 font-bold">Anti-Static Protocol</div>
+                  <div className="text-zinc-400 text-[11px]">Safety grounding wire specification for refueling.</div>
                 </div>
               </div>
             </div>

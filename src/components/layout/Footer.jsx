@@ -88,24 +88,24 @@ export default function Footer() {
           <div className="bg-zinc-900/80 p-4 rounded-xl border border-zinc-800 space-y-2">
             <div className="flex items-center gap-1.5 text-amber-400 font-bold text-[11px]">
               <Scale className="w-4 h-4" />
-              <span>Statutory Compliance Notice</span>
+              <span>Regulatory Architecture & Legal Notice</span>
             </div>
             <p className="text-[11px] text-zinc-400 leading-normal">
-              Commercial fuel fulfilment is conducted exclusively via licensed Oil Marketing Company (OMC) retail depots and PESO-approved explosion-proof safety canisters under the Petroleum Act and Explosives Rules.
+              Doorstep fuel delivery in India is subject to statutory regulations under the Petroleum Act 1934 and PESO guidelines. While commercial diesel delivery has approved frameworks for designated uses, mobile petrol delivery is subject to stringent restrictions. Workflows and canister parameters in this application reflect a demonstration safety model.
             </p>
           </div>
         </div>
 
         <div className="pt-8 border-t border-zinc-800 flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px] text-zinc-500">
           <div>
-            &copy; 2026 Fuel Rescue Technologies India Pvt. Ltd. All rights reserved.
+            &copy; 2026 Fuel Rescue Simulation Platform. All rights reserved.
           </div>
           <div className="flex items-center gap-4">
-            <span className="flex items-center gap-1 text-emerald-500">
+            <span className="flex items-center gap-1 text-emerald-400">
               <ShieldCheck className="w-3.5 h-3.5" />
-              ISO 9001 Safety Protocol
+              Safety Architecture Model
             </span>
-            <span>Bengaluru • Delhi NCR • Mumbai</span>
+            <span>Bengaluru Demo Hub</span>
           </div>
         </div>
       </div>

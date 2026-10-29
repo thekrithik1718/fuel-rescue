@@ -73,29 +73,22 @@ export default function PartnerDashboardPage() {
     setPartner({ ...updated });
   };
 
-  // Atomic Partner Acceptance
-  const handleAcceptOrder = (order) => {
+  // Atomic Partner Acceptance via Server API
+  const handleAcceptOrder = async (order) => {
     setAcceptError(null);
-    const validation = validatePartnerAcceptance({
-      order,
-      partnerId: partner.id,
-      currentAssignedPartnerId: order.partner_id,
-    });
-
-    if (!validation.success) {
-      setAcceptError(validation.error);
-      return;
-    }
-
     try {
-      mockStore.updateOrderStatus(order.id, ORDER_STATUS.ACCEPTED, {
-        partner_id: partner.id,
-        partner_name: partner.name,
-        partner_phone: partner.phone,
-        partner_plate: partner.vehicle_plate,
-        partner_lat: partner.current_lat,
-        partner_lng: partner.current_lng,
+      const res = await fetch(`/api/orders/${order.id}/accept`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ partnerId: partner.id }),
       });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        setAcceptError(data.error || "Could not accept order.");
+        return;
+      }
+      // Update local partner view
+      setOrders([...mockStore.getOrders()]);
     } catch (err) {
       setAcceptError(err.message);
     }
@@ -229,6 +222,12 @@ export default function PartnerDashboardPage() {
                 {activeOrder.vehicle_model} ({activeOrder.vehicle_plate})
               </div>
               <div>Delivery Payout: {formatCurrency(activeOrder.delivery_fee)}</div>
+              <div className="pt-1">
+                <span className="text-zinc-400 text-[11px]">Exact GPS: </span>
+                <span className="font-mono font-bold text-amber-300 text-xs">
+                  {activeOrder.customer_lat.toFixed(6)}, {activeOrder.customer_lng.toFixed(6)}
+                </span>
+              </div>
             </div>
           </div>
 
@@ -241,6 +240,16 @@ export default function PartnerDashboardPage() {
               <span>Open Rescuer Console & Navigation</span>
               <ArrowRight className="w-4 h-4" />
             </Link>
+
+            <a
+              href={`https://www.google.com/maps/dir/?api=1&destination=${activeOrder.customer_lat},${activeOrder.customer_lng}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 bg-amber-400 hover:bg-amber-500 text-zinc-950 font-bold text-xs px-4 py-3 rounded-xl transition shadow-md"
+            >
+              <Navigation className="w-3.5 h-3.5" />
+              <span>Turn-by-Turn GPS Navigation</span>
+            </a>
 
             <a
               href={`tel:${activeOrder.customer_phone || "+919876511111"}`}
@@ -300,6 +309,23 @@ export default function PartnerDashboardPage() {
                   <MapPin className="w-3.5 h-3.5 text-red-500 flex-shrink-0 mt-0.5" />
                   <span>{req.delivery_address}</span>
                 </div>
+
+                {req.customer_lat && req.customer_lng && (
+                  <div className="flex items-center gap-2 text-[11px]">
+                    <span className="font-semibold text-zinc-500">Exact GPS:</span>
+                    <span className="font-mono font-bold text-zinc-800 bg-zinc-200/70 px-2 py-0.5 rounded">
+                      {req.customer_lat.toFixed(6)}, {req.customer_lng.toFixed(6)}
+                    </span>
+                    <a
+                      href={`https://www.google.com/maps/dir/?api=1&destination=${req.customer_lat},${req.customer_lng}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-emerald-700 hover:underline font-semibold ml-auto"
+                    >
+                      Preview in Navigation →
+                    </a>
+                  </div>
+                )}
 
                 <div className="pt-2 border-t border-zinc-200 flex items-center justify-between gap-3">
                   <div className="text-[11px] text-zinc-500 flex items-center gap-1">

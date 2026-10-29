@@ -114,7 +114,7 @@ function RequestFuelContent() {
     distanceKm: routeInfo.distanceKm,
   });
 
-  // Handle GPS location request
+  // Handle GPS location request and reverse geocode
   const handleGetLocation = () => {
     setGpsError(null);
     if (!navigator.geolocation) {
@@ -122,12 +122,22 @@ function RequestFuelContent() {
       return;
     }
     navigator.geolocation.getCurrentPosition(
-      (pos) => {
+      async (pos) => {
         const newCoords = {
           lat: Math.round(pos.coords.latitude * 1000000) / 1000000,
           lng: Math.round(pos.coords.longitude * 1000000) / 1000000,
         };
         setCoords(newCoords);
+        try {
+          const res = await fetch(`/api/geocode?lat=${newCoords.lat}&lng=${newCoords.lng}`);
+          if (res.ok) {
+            const data = await res.json();
+            if (data.address) {
+              setAddress(data.address);
+              return;
+            }
+          }
+        } catch (e) {}
         setAddress(`GPS Location Pin: ${newCoords.lat.toFixed(4)}, ${newCoords.lng.toFixed(4)}`);
       },
       (err) => {
@@ -139,37 +149,52 @@ function RequestFuelContent() {
     );
   };
 
-  // Submit Order
+  const handlePinMoved = async (newLat, newLng) => {
+    setCoords({ lat: newLat, lng: newLng });
+    try {
+      const res = await fetch(`/api/geocode?lat=${newLat}&lng=${newLng}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.address) {
+          setAddress(data.address);
+          return;
+        }
+      }
+    } catch (e) {}
+    setAddress(`Road Pin (${newLat.toFixed(4)}, ${newLng.toFixed(4)})`);
+  };
+
+  // Submit Order via Server API (Server-Authoritative Price Validation)
   const handleSubmitOrder = async () => {
     setIsSubmitting(true);
 
     try {
-      // Create new order in mockStore
-      const createdOrder = mockStore.createOrder({
-        customer_id: user?.id || "44444444-4444-4444-4444-444444444444",
-        customer_name: user?.full_name || "Priya Sharma",
-        customer_phone: user?.phone || "+91 98765 11111",
-        supplier_id: INITIAL_SUPPLIERS[0].id,
-        fuel_type: fuelType,
-        quantity_litres: quantity,
-        fuel_price_per_litre: quote.pricePerLitre,
-        fuel_subtotal: quote.fuelSubtotal,
-        delivery_fee: quote.deliveryFee,
-        emergency_fee: quote.emergencyFee,
-        total_amount: quote.totalAmount,
-        total_paise: quote.totalPaise,
-        status: ORDER_STATUS.SEARCHING_FOR_PARTNER,
-        payment_status: "PAID",
-        payment_method: paymentMethod,
-        customer_lat: coords.lat,
-        customer_lng: coords.lng,
-        delivery_address: address,
-        delivery_landmark: landmark,
-        vehicle_model: vehicleModel,
-        vehicle_plate: vehiclePlate,
-        estimated_distance_km: routeInfo.distanceKm,
-        estimated_duration_mins: routeInfo.durationMinutes,
+      const res = await fetch("/api/orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          customerId: user?.id,
+          customerName: user?.full_name,
+          customerPhone: user?.phone,
+          fuelType,
+          quantityLitres: quantity,
+          distanceKm: routeInfo.distanceKm,
+          customerLat: coords.lat,
+          customerLng: coords.lng,
+          deliveryAddress: address,
+          deliveryLandmark: landmark,
+          vehicleModel,
+          vehiclePlate,
+          paymentMethod,
+        }),
       });
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || "Order creation failed.");
+      }
+
+      const createdOrder = data.order;
 
       // Automatically assign nearby partner after 1.5s for seamless demo
       setTimeout(() => {
@@ -272,9 +297,23 @@ function RequestFuelContent() {
               <DynamicMap
                 customerPin={[coords.lat, coords.lng]}
                 center={[coords.lat, coords.lng]}
-                onPinChange={(newLat, newLng) => setCoords({ lat: newLat, lng: newLng })}
+                onPinChange={handlePinMoved}
                 height="320px"
               />
+
+              {/* Exact GPS Coordinates Indicator & Map API Note */}
+              <div className="flex flex-wrap items-center justify-between text-xs text-zinc-600 bg-zinc-50 p-2.5 rounded-xl border border-zinc-200 gap-2">
+                <div className="flex items-center gap-1.5">
+                  <MapPin className="w-3.5 h-3.5 text-emerald-700" />
+                  <span className="font-semibold text-zinc-700">Target Coordinates:</span>
+                  <span className="font-mono font-bold text-zinc-950">
+                    {coords.lat.toFixed(6)}, {coords.lng.toFixed(6)}
+                  </span>
+                </div>
+                <span className="text-[10px] text-zinc-400 bg-white px-2 py-0.5 rounded border border-zinc-200">
+                  OpenStreetMap (Zero API Key Required)
+                </span>
+              </div>
 
               <div className="space-y-3">
                 <div>
